@@ -1,5 +1,5 @@
 ## Temporal Action Detection with Structured Segment Networks
-### forkd from [SSN](https://github.com/yjxiong/action-detection)
+### Forkd from [SSN](https://github.com/yjxiong/action-detection)
 
 ### [Project Website][ssn]
 

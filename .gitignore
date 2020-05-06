@@ -1,9 +1,9 @@
 # local files
 local/
 
-./anet_toolkit
+anet_toolkit/
 
-model_zoo
+model_zoo/
 
 # data files
 # data/
