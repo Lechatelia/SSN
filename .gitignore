@@ -1,6 +1,10 @@
 # local files
 local/
 
+./anet_toolkit
+
+model_zoo
+
 # data files
 # data/
 
