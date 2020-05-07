@@ -1,8 +1,8 @@
 # local files
 local/
-
+./frame.json
 anet_toolkit/
-
+data/
 model_zoo/
 
 # data files

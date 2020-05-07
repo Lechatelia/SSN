@@ -9,10 +9,10 @@ from ops.io import dump_window_list
 
 
 parser = argparse.ArgumentParser(description="Make window file used for detection")
-parser.add_argument("subset")
-parser.add_argument("modality", choices=['rgb', 'flow'])
-parser.add_argument("frame_path")
-parser.add_argument("output_file")
+parser.add_argument("--subset", default="validation", type=str, choices=["validation", "testing"])
+parser.add_argument("--modality", default="rgb", choices=['rgb', 'flow'])
+parser.add_argument("--frame_path")
+parser.add_argument("--output_file", default="data/thumos14_sw_val_proposal_list.txt", type=str)
 parser.add_argument("--overlap", type=float, default=0.7)
 parser.add_argument("--max_level", type=int, default=8)
 parser.add_argument("--time_step", type=float, default=1)

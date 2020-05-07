@@ -2,7 +2,7 @@ import numpy as np
 import glob
 import os
 import fnmatch
-
+import json
 
 def load_proposal_file(filename):
     lines = list(open(filename))
@@ -37,26 +37,28 @@ def process_proposal_list(norm_proposal_list, out_list_name, frame_dict):
     processed_proposal_list = []
     for idx, prop in enumerate(norm_proposals):
         vid = prop[0]
-        frame_info = frame_dict[vid]
-        frame_cnt = frame_info[1]
-        frame_path = frame_info[0]
+        if vid in frame_dict: # 先判断是否有效
+            frame_info = frame_dict[vid]
+            frame_cnt = frame_info[1]
+            frame_path = frame_info[0]
 
-        gt = [[int(x[0]), int(float(x[1]) * frame_cnt), int(float(x[2]) * frame_cnt)] for x in prop[2]]
 
-        prop = [[int(x[0]), float(x[1]), float(x[2]), int(float(x[3]) * frame_cnt), int(float(x[4]) * frame_cnt)] for x
-                in prop[3]]
+            gt = [[int(x[0]), int(float(x[1]) * frame_cnt), int(float(x[2]) * frame_cnt)] for x in prop[2]]
 
-        out_tmpl = "# {idx}\n{path}\n{fc}\n1\n{num_gt}\n{gt}{num_prop}\n{prop}"
+            prop = [[int(x[0]), float(x[1]), float(x[2]), int(float(x[3]) * frame_cnt), int(float(x[4]) * frame_cnt)] for x
+                    in prop[3]]
 
-        gt_dump = '\n'.join(['{} {:d} {:d}'.format(*x) for x in gt]) + ('\n' if len(gt) else '')
-        prop_dump = '\n'.join(['{} {:.04f} {:.04f} {:d} {:d}'.format(*x) for x in prop]) + (
-            '\n' if len(prop) else '')
+            out_tmpl = "# {idx}\n{path}\n{fc}\n1\n{num_gt}\n{gt}{num_prop}\n{prop}"
 
-        processed_proposal_list.append(out_tmpl.format(
-            idx=idx, path=frame_path, fc=frame_cnt,
-            num_gt=len(gt), gt=gt_dump,
-            num_prop=len(prop), prop=prop_dump
-        ))
+            gt_dump = '\n'.join(['{} {:d} {:d}'.format(*x) for x in gt]) + ('\n' if len(gt) else '')
+            prop_dump = '\n'.join(['{} {:.04f} {:.04f} {:d} {:d}'.format(*x) for x in prop]) + (
+                '\n' if len(prop) else '')
+
+            processed_proposal_list.append(out_tmpl.format(
+                idx=idx, path=frame_path, fc=frame_cnt,
+                num_gt=len(gt), gt=gt_dump,
+                num_prop=len(prop), prop=prop_dump
+            ))
 
     open(out_list_name, 'w').writelines(processed_proposal_list)
 
@@ -67,27 +69,55 @@ def parse_directory(path, key_func=lambda x: x[-11:],
     Parse directories holding extracted frames from standard benchmarks
     """
     print('parse frames under folder {}'.format(path))
-    frame_folders = glob.glob(os.path.join(path, '*'))
 
-    def count_files(directory, prefix_list):
-        lst = os.listdir(directory)
-        cnt_list = [len(fnmatch.filter(lst, x+'*')) for x in prefix_list]
-        return cnt_list
+    if os.path.exists("frame.json"):
+        with open("frame.json", 'r') as file_obj:
+            frame_dict =json.loads( file_obj.read())
 
-    # check RGB
-    frame_dict = {}
-    for i, f in enumerate(frame_folders):
-        all_cnt = count_files(f, (rgb_prefix, flow_x_prefix, flow_y_prefix))
-        k = key_func(f)
+    else:
+        with open('data/segment_val.json', 'r') as json_file:
+            json_video_label = json_file.read()
+            # json.loads() load后面的s就是load str的意思，所以先要read成str， 再load str to json
+            video_label = json.loads(json_video_label)
+            video_names = list(video_label.keys())
+        with open('data/segment_test.json', 'r') as json_file:
+            json_video_label = json_file.read()
+            # json.loads() load后面的s就是load str的意思，所以先要read成str， 再load str to json
+            video_label = json.loads(json_video_label)
+            video_names += list(video_label.keys())
 
-        x_cnt = all_cnt[1]
-        y_cnt = all_cnt[2]
-        if x_cnt != y_cnt:
-            raise ValueError('x and y direction have different number of flow images. video: '+f)
-        if i % 200 == 0:
-            print('{} videos parsed'.format(i))
+        frame_folders = glob.glob(os.path.join(path, '*', "*"))
 
-        frame_dict[k] = (f, all_cnt[0], x_cnt)
+        # 只获取那些有标签的video 信息
+        valid_frame_folders = []
+        for ff in frame_folders:
+            if ff.split(os.sep)[-1] in video_names:
+                valid_frame_folders.append(ff)
+
+        def count_files(directory, prefix_list):
+            lst = os.listdir(directory)
+            lst += os.listdir(directory.replace('frames', 'flows')) # 因为我把帧数据和光流数据放在了不同的位置
+            cnt_list = [len(fnmatch.filter(lst, x+'*')) for x in prefix_list] # [5148, 5147, 5147]
+            return cnt_list
+
+        # check RGB
+        frame_dict = {}
+        for i, f in enumerate(valid_frame_folders):
+            all_cnt = count_files(f, (rgb_prefix, flow_x_prefix, flow_y_prefix))
+            k = key_func(f)
+
+            x_cnt = all_cnt[1]
+            y_cnt = all_cnt[2]
+            if x_cnt != y_cnt:
+                raise ValueError('x and y direction have different number of flow images. video: '+f)
+            if i % 200 == 0:
+                print('{} videos parsed'.format(i))
+
+            frame_dict[k] = (f, all_cnt[0], x_cnt)
+
+
+        with open("frame.json", 'w') as file_obj:
+            file_obj.write(json.dumps(frame_dict))
 
     print('frame folder analysis done')
     return frame_dict
