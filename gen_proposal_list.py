@@ -3,7 +3,8 @@ import os
 from ops.io import process_proposal_list, parse_directory
 from ops.utils import get_configs
 
-
+# 因为官方提供的proposal是归一化的，也就是大小都是0-1之间的，
+# 与自己提供的代码提取的帧数有关，乘以这个帧数就作为真正的proposal
 parser = argparse.ArgumentParser(
     description="Generate proposal list to be used for training")
 parser.add_argument('--dataset', type=str, default='thumos14', choices=['activitynet1.2', 'thumos14'])

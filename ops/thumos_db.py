@@ -1,7 +1,7 @@
 #from .utils import *
 import os
 import glob
-
+import json
 
 class Instance(object):
     """
@@ -149,13 +149,32 @@ class THUMOSDB(object):
             print("Loading avoid set:")
             print(avoid_set)
 
-            #process video info
+            # only for those with annotations
+            if subset == "validation":
+                with open('data/segment_val.json', 'r') as json_file:
+                    json_video_label = json_file.read()
+                    # json.loads() load后面的s就是load str的意思，所以先要read成str， 再load str to json
+                    video_label = json.loads(json_video_label)
+                    valid_video_names = list(video_label.keys())
+            elif subset == "test":
+                with open('data/segment_test.json', 'r') as json_file:
+                    json_video_label = json_file.read()
+                    # json.loads() load后面的s就是load str的意思，所以先要read成str， 再load str to json
+                    video_label = json.loads(json_video_label)
+                    valid_video_names = list(video_label.keys())
+            else:
+                raise Exception("only for validation and test for thumos14")
+
+            #process video info # 注意包括没有label的数据集
             video_names = [durations_lines[i].split('.')[0] for i in range(0, len(durations_lines), 2)]
             video_durations = [durations_lines[i] for i in range(1, len(durations_lines), 2)]
-            video_info = list(zip(video_names, video_durations))
+            # video_info = list(zip(video_names, video_durations))
+            video_info = []
+            for vi in list(zip(video_names, video_durations)):
+                if vi[0] in valid_video_names:
+                    video_info.append(vi)
 
             duration_dict = dict(video_info)
-
             # reorganize annotation to attach them to videos
             video_table = {v: list() for v in video_names}
             for cls_name, annotations in annotaion_list:
@@ -248,7 +267,7 @@ class THUMOSDB(object):
         """
         import glob
         import os
-        folders = glob.glob(os.path.join(frame_path, '*'))
+        folders = glob.glob(os.path.join(frame_path, '*', "*"))
         ids = [os.path.split(name)[-1] for name in folders]
 
         folder_dict = dict(zip(ids, folders))

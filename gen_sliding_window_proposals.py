@@ -9,16 +9,16 @@ from ops.io import dump_window_list
 
 
 parser = argparse.ArgumentParser(description="Make window file used for detection")
-parser.add_argument("--subset", default="validation", type=str, choices=["validation", "testing"])
+parser.add_argument("--subset", default="testing", type=str, choices=["validation", "testing"])
 parser.add_argument("--modality", default="rgb", choices=['rgb', 'flow'])
-parser.add_argument("--frame_path")
-parser.add_argument("--output_file", default="data/thumos14_sw_val_proposal_list.txt", type=str)
+parser.add_argument("--frame_path", default='/data/DataSets/THUMOS14/frames',type=str)
+parser.add_argument("--output_file", default="data/thumos14_sw_test_proposal_list.txt", type=str)
 parser.add_argument("--overlap", type=float, default=0.7)
 parser.add_argument("--max_level", type=int, default=8)
 parser.add_argument("--time_step", type=float, default=1)
 parser.add_argument("--version",  default="1.2")
 parser.add_argument("--avoid",  default=None, type=str)
-parser.add_argument("--dataset",  default="activitynet", choices=['thumos14', 'activitynet'])
+parser.add_argument("--dataset",  default="thumos14", choices=['thumos14', 'activitynet'])
 args = parser.parse_args()
 
 name_pattern = 'img_*.jpg' if args.modality == 'rgb' else 'flow_x_*.jpg'
@@ -43,6 +43,7 @@ videos = db.get_subset_videos(args.subset)
 
 # generate proposals and name them
 gt_spans = [[(x.num_label, x.time_span) for x in v.instances] for v in videos]
+# 产生proposal
 proposal_list = list(map(lambda x: gen_exponential_sw_proposal(x,
                                                           overlap=args.overlap,
                                                           time_step=args.time_step,
