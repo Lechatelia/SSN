@@ -94,8 +94,8 @@ def main():
     else:
         raise ValueError("unknown modality {}".format(args.modality))
 
-    train_prop_file = 'data/{}_proposal_list.txt'.format(dataset_configs['train_list'])
-    val_prop_file = 'data/{}_proposal_list.txt'.format(dataset_configs['test_list'])
+    train_prop_file = 'data/{}_proposal_list_debug.txt'.format(dataset_configs['train_list'])
+    val_prop_file = 'data/{}_proposal_list_debug.txt'.format(dataset_configs['test_list'])
     train_loader = torch.utils.data.DataLoader(
         SSNDataSet("", train_prop_file,
                    epoch_multiplier=args.training_epoch_multiplier,
@@ -127,7 +127,7 @@ def main():
                        ToTorchFormatTensor(div=(args.arch not in ['BNInception', 'InceptionV3'])),
                        normalize,
                    ]), reg_stats=train_loader.dataset.stats),
-        batch_size=args.batch_size, shuffle=False,
+        batch_size=int(args.batch_size/2), shuffle=False,
         num_workers=args.workers, pin_memory=pin_memory)
 
     activity_criterion = torch.nn.CrossEntropyLoss().cuda()
@@ -166,7 +166,7 @@ def main():
                 'state_dict': model.state_dict(),
                 'best_loss': best_loss,
                 'reg_stats': torch.from_numpy(train_loader.dataset.stats)
-            }, is_best)
+            }, is_best, epoch+1)
 
 
 def train(train_loader, model, act_criterion, comp_criterion, regression_criterion, optimizer, epoch):
@@ -193,7 +193,7 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
             in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-
+        # out frames bs, 216, 224, 224
         input_var = torch.autograd.Variable(out_frames)
         scaling_var = torch.autograd.Variable(out_prop_scaling)
         target_var = torch.autograd.Variable(out_prop_labels)
@@ -206,22 +206,24 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
         completeness_out, completeness_target, \
         regression_out, regression_labels, regression_target = model(input_var, scaling_var, target_var,
                                                                      reg_target_var, prop_type_var)
-
+        # activity_out [4 * 2, 21] activity_target [4 *2 ] 4个batch里的proposal type = 0或者 2
+        # completeness_out [4*7, 20]  completeness_target [4*7]  type= 0, 1
+        # regression_out[4*1, 20, 2] regression_labels [4*1]regression_target [4, 2] type =0
         act_loss = act_criterion(activity_out, activity_target)
         comp_loss = comp_criterion(completeness_out, completeness_target, ohem_num, comp_group_size)
         reg_loss = regression_criterion(regression_out, regression_labels, regression_target)
 
-        loss = act_loss + comp_loss * args.comp_loss_weight + reg_loss * args.reg_loss_weight
+        loss = act_loss + comp_loss[0] * args.comp_loss_weight + reg_loss * args.reg_loss_weight
 
-        reg_losses.update(reg_loss.data[0], out_frames.size(0))
+        reg_losses.update(reg_loss, out_frames.size(0))
 
         # measure mAP and record loss
-        losses.update(loss.data[0], out_frames.size(0))
-        act_losses.update(act_loss.data[0], out_frames.size(0))
-        comp_losses.update(comp_loss.data[0], out_frames.size(0))
+        losses.update(loss.item(), out_frames.size(0))
+        act_losses.update(act_loss.item(), out_frames.size(0))
+        comp_losses.update(comp_loss.item(), out_frames.size(0))
 
         act_acc = accuracy(activity_out, activity_target)
-        act_accuracies.update(act_acc[0].data[0], activity_out.size(0))
+        act_accuracies.update(act_acc[0].item(), activity_out.size(0))
 
         fg_acc = accuracy(activity_out.view(-1, 2, activity_out.size(1))[:, 0, :].contiguous(),
                           activity_target.view(-1, 2)[:, 0].contiguous())
@@ -229,8 +231,8 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
         bg_acc = accuracy(activity_out.view(-1, 2, activity_out.size(1))[:, 1, :].contiguous(),
                           activity_target.view(-1, 2)[:, 1].contiguous())
 
-        fg_accuracies.update(fg_acc[0].data[0], activity_out.size(0) // 2)
-        bg_accuracies.update(bg_acc[0].data[0], activity_out.size(0) // 2)
+        fg_accuracies.update(fg_acc[0].item(), activity_out.size(0) // 2)
+        bg_accuracies.update(bg_acc[0].item(), activity_out.size(0) // 2)
 
         # compute gradient and do SGD step
         loss.backward()
@@ -295,11 +297,11 @@ def validate(val_loader, model, act_criterion, comp_criterion, regression_criter
     for i, (out_frames, out_prop_len, out_prop_scaling, out_prop_type, out_prop_labels, out_prop_reg_targets, out_stage_split) \
             in enumerate(val_loader):
         target = out_prop_labels.cuda(async=True)
-        input_var = torch.autograd.Variable(out_frames, volatile=True)
-        scaling_var = torch.autograd.Variable(out_prop_scaling, volatile=True)
-        target_var = torch.autograd.Variable(target, volatile=True)
-        reg_target_var = torch.autograd.Variable(out_prop_reg_targets)
-        prop_type_var = torch.autograd.Variable(out_prop_type)
+        input_var = out_frames.cuda()
+        scaling_var = out_prop_scaling.cuda()
+        target_var = target.cuda()
+        reg_target_var = out_prop_reg_targets.cuda()
+        prop_type_var = out_prop_type.cuda()
 
         # compute output
 
@@ -313,17 +315,17 @@ def validate(val_loader, model, act_criterion, comp_criterion, regression_criter
         comp_loss = comp_criterion(completeness_out, completeness_target, ohem_num, comp_group_size)
         reg_loss = regression_criterion(regression_out, regression_labels, regression_target)
 
-        loss = act_loss + comp_loss * args.comp_loss_weight + reg_loss * args.reg_loss_weight
+        loss = act_loss + comp_loss[0] * args.comp_loss_weight + reg_loss * args.reg_loss_weight
 
-        reg_losses.update(reg_loss.data[0], out_frames.size(0))
+        reg_losses.update(reg_loss.item(), out_frames.size(0))
 
         # measure loss and record
-        losses.update(loss.data[0], out_frames.size(0))
-        act_losses.update(act_loss.data[0], out_frames.size(0))
-        comp_losses.update(comp_loss.data[0], out_frames.size(0))
+        losses.update(loss.item(), out_frames.size(0))
+        act_losses.update(act_loss.item(), out_frames.size(0))
+        comp_losses.update(comp_loss.item(), out_frames.size(0))
 
         act_acc = accuracy(activity_out, activity_target)
-        act_accuracies.update(act_acc[0].data[0], activity_out.size(0))
+        act_accuracies.update(act_acc[0].item(), activity_out.size(0))
 
         fg_acc = accuracy(activity_out.view(-1, 2, activity_out.size(1))[:, 0, :].contiguous(),
                           activity_target.view(-1, 2)[:, 0].contiguous())
@@ -331,8 +333,8 @@ def validate(val_loader, model, act_criterion, comp_criterion, regression_criter
         bg_acc = accuracy(activity_out.view(-1, 2, activity_out.size(1))[:, 1, :].contiguous(),
                           activity_target.view(-1, 2)[:, 1].contiguous())
 
-        fg_accuracies.update(fg_acc[0].data[0], activity_out.size(0)//2)
-        bg_accuracies.update(bg_acc[0].data[0], activity_out.size(0)//2)
+        fg_accuracies.update(fg_acc[0].item(), activity_out.size(0)//2)
+        bg_accuracies.update(bg_acc[0].item(), activity_out.size(0)//2)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -362,11 +364,11 @@ def validate(val_loader, model, act_criterion, comp_criterion, regression_criter
     return losses.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    filename = 'ssn'+'_'.join((args.snapshot_pref, args.dataset, args.arch, args.modality.lower(), filename))
+def save_checkpoint(state, is_best, epoch, filename='checkpoint.pth.tar'):
+    filename = os.path.join(args.snapshot_pref, 'ssn'+'_'.join((args.dataset, args.arch, args.modality.lower(), str(epoch), filename)))
     torch.save(state, filename)
     if is_best:
-        best_name = '_'.join((args.snapshot_pref, args.modality.lower(), 'model_best.pth.tar'))
+        best_name = os.path.join(args.snapshot_pref, 'ssn' + '_'.join((args.modality.lower(), str(epoch), 'model_best.pth.tar')))
         shutil.copyfile(filename, best_name)
 
 

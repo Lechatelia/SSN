@@ -43,13 +43,13 @@ videos = db.get_subset_videos(args.subset)
 
 # generate proposals and name them
 gt_spans = [[(x.num_label, x.time_span) for x in v.instances] for v in videos]
-# 产生proposal
+# 产生proposal 滑动窗形式 以指数大小生成滑动窗形式的proposal
 proposal_list = list(map(lambda x: gen_exponential_sw_proposal(x,
                                                           overlap=args.overlap,
                                                           time_step=args.time_step,
                                                           max_level=args.max_level), videos))
 print('average # of proposals: {} at overlap param {}'.format(np.mean(list(map(len, proposal_list))), args.overlap))
-
+# 得到proposal的 label， overlap, overlap_self, start, end形式
 named_proposal_list = [name_proposal(x, y) for x,y in zip(gt_spans, proposal_list)]
 recall_list = []
 IOU_thresh = [0.5, 0.7, 0.9]
@@ -57,9 +57,10 @@ for th in IOU_thresh:
     pv, pi = get_temporal_proposal_recall(proposal_list, [[y[1] for y in x] for x in gt_spans], th)
     print('IOU threshold {}. per video recall: {:02f}, per instance recall: {:02f}'.format(th, pv * 100, pi * 100))
     recall_list.append([args.overlap, th, np.mean(list(map(len, proposal_list))), pv, pi])
+    # 生成proposal的overlap, 评估用的overlap, proposal平均个数，average per video recall，average per instance recall
 print("average per video recall: {:.2f}, average per instance recall: {:.2f}".format(
     np.mean([x[3] for x in recall_list]), np.mean([x[4] for x in recall_list])))
-
+# 写入proposal——txt，将时长都从秒数s换成帧数frames
 dumped_list = [dump_window_list(v, prs, args.frame_path, name_pattern) for v, prs in zip(videos, named_proposal_list) if v.id not in avoid_list]
 
 with open(args.output_file, 'w') as of:

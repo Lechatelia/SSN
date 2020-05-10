@@ -4,7 +4,7 @@ import yaml
 
 
 def get_configs(dataset):
-    data = yaml.load(open('data/dataset_cfg.yaml'))
+    data = yaml.load(open('data/dataset_cfg.yaml'), Loader=yaml.FullLoader)
     return data[dataset]
 
 def get_actionness_configs(dataset):

@@ -73,20 +73,20 @@ class SSN(torch.nn.Module):
         else:
             setattr(self.base_model, self.base_model.last_layer_name, nn.Dropout(p=self.dropout))
 
-        self.stpp = StructuredTemporalPyramidPooling(feature_dim, True, configs=stpp_cfg)
-        self.activity_fc = nn.Linear(self.stpp.activity_feat_dim(), num_class + 1)
-        self.completeness_fc = nn.Linear(self.stpp.completeness_feat_dim(), num_class)
+        self.stpp = StructuredTemporalPyramidPooling(feature_dim, True, configs=stpp_cfg) # feature_dim =1024
+        self.activity_fc = nn.Linear(self.stpp.activity_feat_dim(), num_class + 1) # 1024 --->21
+        self.completeness_fc = nn.Linear(self.stpp.completeness_feat_dim(), num_class) # 3072 --->20
 
-        nn.init.normal(self.activity_fc.weight.data, 0, 0.001)
-        nn.init.constant(self.activity_fc.bias.data, 0)
-        nn.init.normal(self.completeness_fc.weight.data, 0, 0.001)
-        nn.init.constant(self.completeness_fc.bias.data, 0)
+        nn.init.normal_(self.activity_fc.weight.data, 0, 0.001)
+        nn.init.constant_(self.activity_fc.bias.data, 0)
+        nn.init.normal_(self.completeness_fc.weight.data, 0, 0.001)
+        nn.init.constant_(self.completeness_fc.bias.data, 0)
 
         self.test_fc = None
         if self.with_regression:
-            self.regressor_fc = nn.Linear(self.stpp.completeness_feat_dim(), 2 * num_class)
-            nn.init.normal(self.regressor_fc.weight.data, 0, 0.001)
-            nn.init.constant(self.regressor_fc.bias.data, 0)
+            self.regressor_fc = nn.Linear(self.stpp.completeness_feat_dim(), 2 * num_class) # 3072 ---> 40
+            nn.init.normal_(self.regressor_fc.weight.data, 0, 0.001)
+            nn.init.constant_(self.regressor_fc.bias.data, 0)
         else:
             self.regressor_fc = None
 
@@ -255,32 +255,32 @@ class SSN(torch.nn.Module):
             return self.train_forward(input, aug_scaling, target, reg_target, prop_type)
         else:
             return self.test_forward(input)
-
-    def train_forward(self, input, aug_scaling, target, reg_target, prop_type):
-        sample_len = (3 if self.modality == "RGB" else 2) * self.new_length
-
+    # target = [bs, 8] reg_target = [bs, 8, 2 ] prop_type = [bs, 8]
+    def train_forward(self, input, aug_scaling, target, reg_target, prop_type): # when bs = 1
+        sample_len = (3 if self.modality == "RGB" else 2) * self.new_length #
+        # [bs, 216, 224, 224]  实际采样的图片帧数 bs*216/ 3 =72 = 8 proposal * 9 snippet
         if self.modality == 'RGBDiff':
             sample_len = 3 * self.new_length
             input = self._get_diff(input)
 
-        base_out = self.base_model(input.view((-1, sample_len) + input.size()[-2:]))
+        base_out = self.base_model(input.view((-1, sample_len) + input.size()[-2:])) # 72=8*9[72, 1024] 实际图片帧数
 
         activity_ft, completeness_ft = self.stpp(base_out, aug_scaling, [self.starting_segment,
                                                                          self.starting_segment + self.course_segment,
                                                                          self.num_segments])
-
-        raw_act_fc = self.activity_fc(activity_ft)
-        raw_comp_fc = self.completeness_fc(completeness_ft)
+        # [8, 1024] [8, 3072]
+        raw_act_fc = self.activity_fc(activity_ft) # [8, 21]
+        raw_comp_fc = self.completeness_fc(completeness_ft) # [8, 20]
 
         type_data = prop_type.view(-1).data
-        act_indexer = ((type_data == 0) + (type_data == 2)).nonzero().squeeze()
-        comp_indexer = ((type_data == 0) + (type_data == 1)).nonzero().squeeze()
+        act_indexer = ((type_data == 0) + (type_data == 2)).nonzero().squeeze(1) # 计算分类损失 it is important to only squeeze dim=1
+        comp_indexer = ((type_data == 0) + (type_data == 1)).nonzero().squeeze(1) # 计算是否完整 it is important to only squeeze dim=1
         target = target.view(-1)
 
         if self.with_regression:
-            reg_target = reg_target.view(-1, 2)
-            reg_indexer = (type_data == 0).nonzero().squeeze()
-            raw_regress_fc = self.regressor_fc(completeness_ft).view(-1, self.completeness_fc.out_features, 2)
+            reg_target = reg_target.view(-1, 2) # [8, 2]
+            reg_indexer = (type_data == 0).nonzero().squeeze(1) # fg it is important to only squeeze dim=1
+            raw_regress_fc = self.regressor_fc(completeness_ft).view(-1, self.completeness_fc.out_features, 2) # [8, 20, 2]
             return raw_act_fc[act_indexer, :], target[act_indexer], \
                    raw_comp_fc[comp_indexer, :], target[comp_indexer], \
                    raw_regress_fc[reg_indexer, :, :], target[reg_indexer], reg_target[reg_indexer, :]

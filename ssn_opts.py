@@ -1,7 +1,7 @@
 import argparse
 parser = argparse.ArgumentParser(description="PyTorch code to train Structured Segment Networks (SSN)")
-parser.add_argument('dataset', type=str, choices=['activitynet1.2', 'thumos14'])
-parser.add_argument('modality', type=str, choices=['RGB', 'Flow', 'RGBDiff'])
+parser.add_argument('--dataset', default="thumos14", type=str, choices=['activitynet1.2', 'thumos14'])
+parser.add_argument('--modality', default="RGB", type=str, choices=['RGB', 'Flow', 'RGBDiff'])
 
 # ========================= Model Configs ==========================
 parser.add_argument('--arch', type=str, default="BNInception")
@@ -12,17 +12,17 @@ parser.add_argument('--dropout', '--do', default=0.8, type=float,
                     metavar='DO', help='dropout ratio (default: 0.8)')
 
 # ========================= Learning Configs ==========================
-parser.add_argument('--epochs', default=7, type=int, metavar='N',
+parser.add_argument('--epochs', default=45, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--training_epoch_multiplier', '--tem', default=10, type=int,
                     help='replicate the training set by N times in one epoch')
-parser.add_argument('-b', '--batch-size', default=16, type=int,
+parser.add_argument('-b', '--batch-size', default=8, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('-i', '--iter-size', default=1, type=int,
                     metavar='N', help='number of iterations before on update')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate')
-parser.add_argument('--lr_steps', default=[3, 6], type=float, nargs="+",
+parser.add_argument('--lr_steps', default=[20, 40], type=float, nargs="+",
                     metavar='LRSteps', help='epochs to decay learning rate by 10')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
@@ -48,13 +48,13 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--kinetics_pretrain', '--kin', default=False, action='store_true',
+parser.add_argument('--kinetics_pretrain', '--kin', default=True, action='store_true',
                     help='whether to use kinetics pretrained models')
 parser.add_argument('--init_weights', default='', type=str, metavar='PATH',
                     help='path to pretrained weights')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
-parser.add_argument('--snapshot_pref', type=str, default="")
+parser.add_argument('--snapshot_pref', default='models', type=str)
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--gpus', nargs='+', type=int, default=None)

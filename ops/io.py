@@ -127,8 +127,11 @@ def dump_window_list(video_info, named_proposals, frame_path, name_pattern, allo
     # first count frame numbers
     try:
         video_name = video_info.path.split('/')[-1].split('.')[0]
-        files = glob.glob(os.path.join(frame_path, video_name, name_pattern))
+        files = glob.glob(os.path.join(frame_path, 'val', video_name, name_pattern)) \
+                +  glob.glob(os.path.join(frame_path, 'test', video_name, name_pattern))
         frame_cnt = len(files)
+        if frame_cnt == 0:
+            raise Exception("does found image")
     except:
         if allow_empty:
             frame_cnt = score.shape[0] * 6
@@ -140,10 +143,10 @@ def dump_window_list(video_info, named_proposals, frame_path, name_pattern, allo
     real_fps = float(frame_cnt) / float(video_info.duration)
 
     # get groundtruth windows
-    gt_w = [(x.num_label, x.time_span) for x in video_info.instance]
-    gt_windows = [(x[0]+1, int(x[1][0] * real_fps), int(x[1][1] * real_fps)) for x in gt_w]
+    gt_w = [(x.num_label, x.time_span) for x in video_info.instance] # 以秒为单位的
+    gt_windows = [(x[0]+1, int(x[1][0] * real_fps), int(x[1][1] * real_fps)) for x in gt_w] # 变成以帧为单位的
 
-    dump_gt = []
+    dump_gt = [] # 存放gt的列表
     for gt in gt_windows:
         dump_gt.append('{} {} {}'.format(*gt))
 

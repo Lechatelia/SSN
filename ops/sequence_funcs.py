@@ -35,13 +35,13 @@ def label_frame_by_threshold(score_mat, cls_lst, bw=None, thresh=list([0.05]), m
 
 
 def gen_exponential_sw_proposal(video_info, time_step=1, max_level=8, overlap=0.4):
-    spans = [2 ** x for x in range(max_level)]
-    duration = video_info.duration
+    spans = [2 ** x for x in range(max_level)] # [1, 2, 4, 8, ..., 128]
+    duration = video_info.duration # 这个视频时长(秒）
     pr = []
     for t_span in spans:
         span = t_span * time_step
-        step = int(np.ceil(span * (1 - overlap)))
-        local_boxes = [(i, i + t_span) for i in np.arange(0, duration, step)]
+        step = int(np.ceil(span * (1 - overlap))) # window 的step
+        local_boxes = [(i, i + t_span) for i in np.arange(0, duration, step)] # 以step为单位滑动的大小为t_span的proposal
         pr.extend(local_boxes)
 
     # fileter proposals
@@ -49,7 +49,7 @@ def gen_exponential_sw_proposal(video_info, time_step=1, max_level=8, overlap=0.
     def valid_proposal(duration, span):
         real_span = min(duration, span[1]) - span[0]
         return real_span >= 1
-
+    # proposal的长度要大于1s
     pr = list(filter(lambda x: valid_proposal(duration, x), pr))
     return pr
 

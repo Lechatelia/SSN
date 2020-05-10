@@ -485,7 +485,7 @@ class SSNDataSet(data.Dataset):
         out_prop_reg_targets = torch.from_numpy(np.array(out_prop_reg_targets, dtype=np.float32))
         out_prop_type = torch.from_numpy(np.array(out_prop_type))
         out_stage_split = torch.from_numpy(np.array(out_stage_split))
-        out_frames = torch.cat(out_frames)
+        out_frames = torch.cat(out_frames) # [216, 224, 224]
         return out_frames, out_prop_len, out_prop_scaling, out_prop_type, out_prop_labels, \
                out_prop_reg_targets, out_stage_split
 

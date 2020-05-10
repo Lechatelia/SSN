@@ -60,18 +60,18 @@ def name_proposal(gt_spans, est_spans, thresh=0.0):
     :return: [(label, overlap, start, end), ...] same number of est_spans
     """
     ret = []
-    for es in est_spans:
+    for es in est_spans: # for proposal
         max_overlap = 0
         max_overlap_over_self = 0
         label = 0
-        for gs in gt_spans:
+        for gs in gt_spans: # for gt
             ov = temporal_iou(gs[1], es)
-            ov_pr = overlap_over_b(gs[1], es)
+            ov_pr = overlap_over_b(gs[1], es) # inter / duration_of_proposal 就是proposal有多少能够在gt中间，能够作为不完整片段的衡量标准
             if ov > thresh and ov > max_overlap:
                 label = gs[0] + 1
                 max_overlap = ov
                 max_overlap_over_self = ov_pr
-        ret.append((label, max_overlap, max_overlap_over_self, es[0], es[1]))
+        ret.append((label, max_overlap, max_overlap_over_self, es[0], es[1])) # 赋予proposal的label 最大overlap self——overlap start end
 
     return ret
 
