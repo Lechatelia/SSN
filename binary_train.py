@@ -190,9 +190,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
                         p.grad /= args.iter_size
 
             if args.clip_gradient is not None:
-                total_norm = clip_grad_norm(model.parameters(), args.clip_gradient)
-                if total_norm > args.clip_gradient:
-                    print('Clipping gradient: {} with coef {}'.format(total_norm, args.clip_gradient / total_norm))
+                total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_gradient)
+                # if total_norm > args.clip_gradient:
+                #     print('Clipping gradient: {} with coef {}'.format(total_norm, args.clip_gradient / total_norm))
             else:
                 total_norm = 0
     

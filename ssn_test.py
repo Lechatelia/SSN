@@ -14,15 +14,16 @@ from ops.utils import get_configs, get_reference_model_url
 
 parser = argparse.ArgumentParser(
     description="SSN Testing Tool")
-parser.add_argument('dataset', type=str, choices=['activitynet1.2', 'thumos14'])
-parser.add_argument('modality', type=str, choices=['RGB', 'Flow', 'RGBDiff'])
-parser.add_argument('weights', type=str)
-parser.add_argument('save_scores', type=str)
+parser.add_argument('--dataset', default="thumos14", type=str, choices=['activitynet1.2', 'thumos14'])
+parser.add_argument('--modality', type=str,default="RGB", choices=['RGB', 'Flow', 'RGBDiff'])
+parser.add_argument('--epoch', default=30, type=int)
+parser.add_argument('--weights', default="models/ssnthumos14_{}_{}_{}_checkpoint.pth.tar",type=str)
+parser.add_argument('--save_scores', default="results/ssn_thumos_{}_{}_{}", type=str)
 parser.add_argument('--arch', type=str, default="BNInception")
 parser.add_argument('--save_raw_scores', type=str, default=None)
 parser.add_argument('--aug_ratio', type=float, default=0.5)
 parser.add_argument('--frame_interval', type=int, default=6)
-parser.add_argument('--test_batchsize', type=int, default=512)
+parser.add_argument('--test_batchsize', type=int, default=8)
 parser.add_argument('--no_regression', action="store_true", default=False)
 parser.add_argument('--max_num', type=int, default=-1)
 parser.add_argument('--test_crops', type=int, default=10)
@@ -35,7 +36,8 @@ parser.add_argument('--use_reference', default=False, action='store_true')
 parser.add_argument('--use_kinetics_reference', default=False, action='store_true')
 
 args = parser.parse_args()
-
+args.weights = args.weights.format(args.arch, args.modality.lower(), args.epoch)
+args.save_scores = args.save_scores.format(args.arch, args.modality.lower(), args.epoch)
 dataset_configs = get_configs(args.dataset)
 
 num_class = dataset_configs['num_class']
@@ -49,7 +51,7 @@ elif args.modality in ['Flow', 'RGBDiff']:
 else:
     raise ValueError("unknown modality {}".format(args.modality))
 
-gpu_list = args.gpus if args.gpus is not None else range(8)
+gpu_list = args.gpus if args.gpus is not None else range(4)
 
 
 def runner_func(dataset, state_dict, stats, gpu_id, index_queue, result_queue):
@@ -78,20 +80,19 @@ def runner_func(dataset, state_dict, stats, gpu_id, index_queue, result_queue):
         output = torch.zeros((frame_cnt, output_dim)).cuda()
         cnt = 0
         for frames in frames_gen:
-            input_var = torch.autograd.Variable(frames.view(-1, length, frames.size(-2), frames.size(-1)).cuda(),
-                                                volatile=True)
+            input_var = frames.view(-1, length, frames.size(-2), frames.size(-1)).cuda()
             rst, _ = net(input_var, None, None, None, None)
             sc = rst.data.view(num_crop, -1, output_dim).mean(dim=0)
             output[cnt: cnt + sc.size(0), :] = sc
             cnt += sc.size(0)
-        act_scores, comp_scores, reg_scores = reorg_stpp.forward(output, prop_ticks, prop_scaling)
+        act_scores, comp_scores, reg_scores = reorg_stpp.forward(output, prop_ticks, prop_scaling)  # [N. 21] [N, 20] [N, 20, 2]
 
         if reg_scores is not None:
             reg_scores = reg_scores.view(-1, num_class, 2)
             reg_scores[:, :, 0] = reg_scores[:, :, 0] * stats[1, 0] + stats[0, 0]
             reg_scores[:, :, 1] = reg_scores[:, :, 1] * stats[1, 1] + stats[0, 1]
 
-        # perform stpp on scores
+        # perform stpp on scores rel_props 是原本proposal的duration
         result_queue.put((dataset.video_list[index].id, rel_props.numpy(), act_scores.cpu().numpy(), \
                comp_scores.cpu().numpy(), reg_scores.cpu().numpy(), output.cpu().numpy()))
 

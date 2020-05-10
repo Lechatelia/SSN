@@ -26,10 +26,22 @@ self.load_state_dict(torch.load(weight_url))
 
 import torch
 
-weight_path = 'Pretrained/bn_inception-9f5701afb96c8044.pth'
-weight_fixed_path = 'Pretrained/bn_inception-9f5701afb96c8044_fixed.pth'
-state_dict = torch.load(weight_path)
+# 预训练模型
+# weight_path = 'Pretrained/bn_inception-9f5701afb96c8044.pth'
+# weight_fixed_path = 'Pretrained/bn_inception-9f5701afb96c8044_fixed.pth'
+# state_dict = torch.load(weight_path)
+# for name, weights in state_dict.items():
+#     if 'bn' in name:
+#         print(name)
+#         state_dict[name] = weights.squeeze(0)
+# torch.save(state_dict, weight_fixed_path)
+
+#用kinectics预训练的模型
+weight_path = 'Pretrained/bninception_flow_kinetics_init-1410c1ccb470.pth'
+weight_fixed_path = 'Pretrained/bninception_flow_kinetics_init-1410c1ccb470_fixed.pth'
+state_dict = torch.load(weight_path)['state_dict']
 for name, weights in state_dict.items():
     if 'bn' in name:
+        print(name)
         state_dict[name] = weights.squeeze(0)
-torch.save(state_dict, weight_fixed_path)
+torch.save({'state_dict':state_dict}, weight_fixed_path)

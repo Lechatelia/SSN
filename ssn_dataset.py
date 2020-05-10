@@ -185,9 +185,11 @@ class SSNDataSet(data.Dataset):
         self._parse_prop_file(stats=reg_stats)
 
     def _load_image(self, directory, idx):
+
         if self.modality == 'RGB' or self.modality == 'RGBDiff':
             return [Image.open(os.path.join(directory, self.image_tmpl.format(idx))).convert('RGB')]
         elif self.modality == 'Flow':
+            directory = directory.replace("frames", "flows")
             x_img = Image.open(os.path.join(directory, self.image_tmpl.format('x', idx))).convert('L')
             y_img = Image.open(os.path.join(directory, self.image_tmpl.format('y', idx))).convert('L')
 
@@ -367,8 +369,10 @@ class SSNDataSet(data.Dataset):
         for idx, seg_ind in enumerate(prop_indices):
             p = int(seg_ind)
             for x in range(self.new_length):
-                frames.extend(self._load_image(prop[0][0], min(frame_cnt, p+x)))
-
+                if not self.modality == 'Flow':
+                    frames.extend(self._load_image(prop[0][0], min(frame_cnt, p+x)))
+                else: # 因为flow会少一张图片
+                    frames.extend(self._load_image(prop[0][0], min(frame_cnt-1, p + x)))
         # get regression target
         if prop[1] == 0:
             reg_targets = prop[0][1].regression_targets

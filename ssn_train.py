@@ -46,7 +46,8 @@ def main():
             print(("=> no weights file found at '{}'".format(args.init_weights)))
     elif args.kinetics_pretrain:
         model_url = dataset_configs['kinetics_pretrain'][args.arch][args.modality]
-        model.base_model.load_state_dict(model_zoo.load_url(model_url)['state_dict'])
+        # model.base_model.load_state_dict(model_zoo.load_url(model_url)['state_dict'])
+        model.base_model.load_state_dict(torch.load(model_url)['state_dict'])
         print(("=> loaded init weights from '{}'"
                .format(model_url)))
     else:
@@ -94,8 +95,8 @@ def main():
     else:
         raise ValueError("unknown modality {}".format(args.modality))
 
-    train_prop_file = 'data/{}_proposal_list_debug.txt'.format(dataset_configs['train_list'])
-    val_prop_file = 'data/{}_proposal_list_debug.txt'.format(dataset_configs['test_list'])
+    train_prop_file = 'data/{}_proposal_list.txt'.format(dataset_configs['train_list'])
+    val_prop_file = 'data/{}_proposal_list.txt'.format(dataset_configs['test_list'])
     train_loader = torch.utils.data.DataLoader(
         SSNDataSet("", train_prop_file,
                    epoch_multiplier=args.training_epoch_multiplier,
@@ -246,8 +247,8 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
 
             if args.clip_gradient is not None:
                 total_norm = clip_grad_norm(model.parameters(), args.clip_gradient)
-                if total_norm > args.clip_gradient:
-                    print("clipping gradient: {} with coef {}".format(total_norm, args.clip_gradient / total_norm))
+                # if total_norm > args.clip_gradient:
+                #     print("clipping gradient: {} with coef {}".format(total_norm, args.clip_gradient / total_norm))
             else:
                 total_norm = 0
 

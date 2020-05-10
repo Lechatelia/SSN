@@ -21,9 +21,9 @@ from ops.utils import get_configs
 # options
 parser = argparse.ArgumentParser(
     description="Evaluate detection performance metrics")
-parser.add_argument('dataset', type=str, choices=['activitynet1.2', 'thumos14'])
-parser.add_argument('detection_pickles', type=str, nargs='+')
-parser.add_argument('--nms_threshold', type=float, default=None)
+parser.add_argument('--dataset',default="thumos14", type=str, choices=['activitynet1.2', 'thumos14'])
+parser.add_argument('--detection_pickles', default=['results/ssn_thumos_BNInception_rgb_30'], type=str, nargs='+')
+parser.add_argument('--nms_threshold', type=float, default=0.6)
 parser.add_argument('--no_regression', default=False, action="store_true")
 parser.add_argument('--softmax_before_filter', default=False, action="store_true")
 parser.add_argument('-j', '--ap_workers', type=int, default=32)
@@ -35,20 +35,20 @@ parser.add_argument('--score_weights', type=float, default=None, nargs='+')
 args = parser.parse_args()
 
 dataset_configs = get_configs(args.dataset)
-num_class = dataset_configs['num_class']
-test_prop_file = 'data/{}_proposal_list.txt'.format(dataset_configs['test_list'])
+num_class = dataset_configs['num_class'] # 20
+test_prop_file = 'data/{}_proposal_list.txt'.format(dataset_configs['test_list']) # proposal文件
 nms_threshold = args.nms_threshold if args.nms_threshold else dataset_configs['evaluation']['nms_threshold']
-top_k = args.top_k if args.top_k else dataset_configs['evaluation']['top_k']
+top_k = args.top_k if args.top_k else dataset_configs['evaluation']['top_k'] # 2000
 softmax_bf = args.softmax_before_filter \
     if args.softmax_before_filter else dataset_configs['evaluation']['softmax_before_filter']
 
 print("initiating evaluation of detection results {}".format(args.detection_pickles))
 score_pickle_list = []
 for pc in args.detection_pickles:
-    score_pickle_list.append(pickle.load(open(pc, 'rb')))
+    score_pickle_list.append(pickle.load(open(pc, 'rb'))) # 读取检测检测
 
 if args.score_weights:
-    weights = np.array(args.score_weights) / sum(args.score_weights)
+    weights = np.array(args.score_weights) / sum(args.score_weights) # 两个pickle一起检测的时候
 else:
     weights = [1.0/len(score_pickle_list) for _ in score_pickle_list]
 
@@ -65,13 +65,13 @@ def merge_scores(vid):
     comp_weights = weights
     reg_weights = weights
     rel_props = score_pickle_list[0][vid][0]
-
+    # rel_props 是原本回归之前的duration
     return rel_props, \
            merge_part(arrays, 1, act_weights), \
            merge_part(arrays, 2, comp_weights), \
            merge_part(arrays, 3, reg_weights)
 
-print('Merge detection scores from {} sources...'.format(len(score_pickle_list)))
+print('Merge detection scores from {} sources...'.format(len(score_pickle_list))) # 如果有多个检测结果的话
 detection_scores = {k: merge_scores(k) for k in score_pickle_list[0]}
 print('Done.')
 
@@ -197,10 +197,10 @@ plain_detections = [ravel_detections(dataset_detections, cls) for cls in range(n
 
 
 # get gt
-all_gt = pd.DataFrame(dataset.get_all_gt(), columns=["video-id", "cls","t-start", "t-end"])
+all_gt = pd.DataFrame(dataset.get_all_gt(), columns=["video-id", "cls","t-start", "t-end"]) # gt信息 3234个gt
 gt_by_cls = []
-for cls in range(num_class):
-    gt_by_cls.append(all_gt[all_gt.cls == cls].reset_index(drop=True).drop('cls', 1))
+for cls in range(num_class): # 得到某一个类别的信息
+    gt_by_cls.append(all_gt[all_gt.cls == cls].reset_index(drop=True).drop('cls', 1))# 去掉某一列
 
 pickle.dump(gt_by_cls, open('gt_dump.pc', 'wb'), pickle.HIGHEST_PROTOCOL)
 pickle.dump(plain_detections, open('pred_dump.pc', 'wb'), pickle.HIGHEST_PROTOCOL)

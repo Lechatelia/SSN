@@ -1,7 +1,7 @@
 import argparse
 parser = argparse.ArgumentParser(description="PyTorch code to train Structured Segment Networks (SSN)")
 parser.add_argument('--dataset', default="thumos14", type=str, choices=['activitynet1.2', 'thumos14'])
-parser.add_argument('--modality', default="RGB", type=str, choices=['RGB', 'Flow', 'RGBDiff'])
+parser.add_argument('--modality', default="Flow", type=str, choices=['RGB', 'Flow', 'RGBDiff'])
 
 # ========================= Model Configs ==========================
 parser.add_argument('--arch', type=str, default="BNInception")
@@ -22,13 +22,13 @@ parser.add_argument('-i', '--iter-size', default=1, type=int,
                     metavar='N', help='number of iterations before on update')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate')
-parser.add_argument('--lr_steps', default=[20, 40], type=float, nargs="+",
+parser.add_argument('--lr_steps', default=[20, 30, 40], type=float, nargs="+",
                     metavar='LRSteps', help='epochs to decay learning rate by 10')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float,
                     metavar='W', help='weight decay (default: 5e-4)')
-parser.add_argument('--clip-gradient', '--gd', default=None, type=float,
+parser.add_argument('--clip-gradient', '--gd', default=1, type=float,
                     metavar='W', help='gradient norm clipping (default: disabled)')
 parser.add_argument('--bn_mode', '--bn', default='frozen', type=str,
                     help="the mode of bn layers")
@@ -40,11 +40,11 @@ parser.add_argument('--reg_loss_weight', '--rw', default=0.1, type=float,
 # ========================= Monitor Configs ==========================
 parser.add_argument('--print-freq', '-p', default=20, type=int,
                     metavar='N', help='print frequency (default: 10)')
-parser.add_argument('--eval-freq', '-ef', default=1, type=int,
+parser.add_argument('--eval-freq', '-ef', default=5, type=int,
                     metavar='N', help='evaluation frequency (default: 5)')
 
 # ========================= Runtime Configs ==========================
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=12, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
@@ -58,7 +58,7 @@ parser.add_argument('--snapshot_pref', default='models', type=str)
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('--gpus', nargs='+', type=int, default=None)
-parser.add_argument('--flow_prefix', default="", type=str)
+parser.add_argument('--flow_prefix', default="flow_", type=str)
 
 
 
